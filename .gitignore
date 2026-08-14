@@ -124,4 +124,8 @@ data/*.db
 *.webp
 scratch/
 examples/output/
+test_output/
+v2_test_output/
+custom_test_output/
 chrome_user_profile/
+

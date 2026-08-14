@@ -1,18 +1,16 @@
-# Perchance Image Generator (Python OOP Library v2.0)
+# Perchance Image Generator (Python OOP Library)
 
-An Object-Oriented, asynchronous Python library for generating AI images using the [Perchance AI Text-to-Image Generator](https://perchance.org/ai-text-to-image-generator) supporting both **Version 2 Chromeless Direct API Mode** (`PerchanceHTTPGenerator`) and **Version 1 Playwright Chrome Mode** (`PerchanceGenerator`).
+An Object-Oriented, asynchronous Python library for generating AI images using the [Perchance AI Text-to-Image Generator](https://perchance.org/ai-text-to-image-generator) powered by Playwright browser automation.
 
 ---
 
-## Features & Version 2 Capabilities
+## Features
 
-- ⚡ **Version 2 Chromeless Direct API (`PerchanceHTTPGenerator`):** Executes in a lightweight, background process without launching desktop Chrome windows or GUI elements.
-- 📁 **Complete V1 Backup:** Full physical backup copy preserved in `v1_backup/` for safety.
-- 🎨 **Asynchronous & Object-Oriented Design:** Modern Python API using `async/await` and context managers (`async with PerchanceHTTPGenerator() as generator:`).
-- 🚀 **Session Reuse & Batch Generation:** Single-session reuse to generate multiple images (`generate_batch`) without page reloading.
+- 🎨 **Asynchronous & Object-Oriented Design:** Modern Python API using `async/await` and context managers (`async with PerchanceGenerator() as generator:`).
+- 🚀 **Session Reuse & Batch Generation:** Single-session page reuse to generate multiple images (`generate_batch`) without reloading the page, saving ~12s per image.
 - 📐 **Resolution & Shape Options:** Supports `square` (768x768), `landscape` (768x512), and `portrait` (512x768).
-- ⚙️ **Configurable Parameters:** Custom negative prompts, guidance scale (1.0 - 30.0), art styles, and seed control.
-
+- ⚙️ **Configurable Parameters:** Custom negative prompts, guidance scale (1.0 - 30.0), and seed control.
+- 🌐 **Network Logger:** Built-in Chrome network log listener to capture and export raw HTTP traffic and console messages to JSON.
 
 ---
 
