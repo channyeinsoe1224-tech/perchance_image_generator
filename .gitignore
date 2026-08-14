@@ -1,0 +1,127 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script run during development
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkouts
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+#   For more information: https://github.com/pyenv/pyenv#environment-variables
+.python-version
+
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if used with a verified Pipfile, it is recommended to keep it.
+#Pipfile.lock
+
+# poetry
+#   Similar to Pipenv, Poetry uses poetry.lock over pipfile.lock
+#poetry.lock
+
+# pdm
+.pdm-plugins/
+.pdm-build/
+
+# virtualenv
+.venv/
+venv/
+ENV/
+env/
+active_env/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# VS Code settings
+.vscode/
+
+# PyCharm settings
+.idea/
+
+# Local configuration & credentials (DO NOT COMMIT SENSITIVE DATA)
+config/config.json
+
+# Local database (SQLite data files)
+data/bot_data.db
+data/*.db
+*.db
+*.db-journal
+
+# Local generated/test images & scratch dumps
+*.jpeg
+*.jpg
+*.png
+*.webp
+scratch/
+examples/output/
+chrome_user_profile/
