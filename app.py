@@ -1,11 +1,13 @@
-"""Perchance AI Studio — High-Concurrency Web Application Backend with Multi-Worker Pool.
+"""Perchance AI Studio — Zero-Disk Streaming Proxy Web Application Backend.
 
 FastAPI server providing scalable RESTful and WebSocket (ws://) endpoints with an asynchronous
 worker pool for concurrent AI image generation, real-time queue management, live streaming progress,
-and persistent gallery storage.
+and Zero-Disk on-demand streaming proxy (0 MB disk storage used for image files).
 """
 
 import asyncio
+import base64
+import io
 import json
 import os
 import platform
@@ -15,9 +17,10 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+import httpx
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -26,13 +29,11 @@ from perchance import PerchanceGenerator, Shape
 # Setup directories
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
-OUTPUTS_DIR = os.path.join(STATIC_DIR, "outputs")
 DATA_DIR = os.path.join(BASE_DIR, "data")
 GALLERY_FILE = os.path.join(DATA_DIR, "gallery.json")
 PROFILE_DIR = os.path.join(DATA_DIR, "browser_profile")
 
 os.makedirs(STATIC_DIR, exist_ok=True)
-os.makedirs(OUTPUTS_DIR, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(PROFILE_DIR, exist_ok=True)
 
@@ -289,7 +290,7 @@ class AsyncGeneratorPoolManager:
         finally:
             worker.busy = False
             worker.jobs_count += 1
-            # Auto-recycle context after 35 jobs to prevent memory accumulation
+            # Auto-recycle context after 35 jobs for memory maintenance
             if worker.jobs_count >= 35:
                 print(f"[AI Studio Pool] Recycling Worker #{worker.worker_id} for memory maintenance...")
                 try:
@@ -325,7 +326,7 @@ _pool_manager = AsyncGeneratorPoolManager(size=MAX_WORKERS)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("[AI Studio] Starting Perchance Multi-Worker Service...")
+    print("[AI Studio] Starting Perchance Multi-Worker Service (Zero-Disk Proxy Mode)...")
     await _pool_manager.start()
     yield
     print("[AI Studio] Shutting down Perchance Service...")
@@ -335,8 +336,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Perchance AI Image Studio",
-    description="Perchance AI Multi-Worker Studio with WebSocket Live Streaming and Queue Management",
-    version="2.3.0",
+    description="Perchance AI Multi-Worker Studio with Streaming Proxy and Zero Disk Usage",
+    version="2.4.0",
     lifespan=lifespan,
 )
 
@@ -383,6 +384,7 @@ async def get_status():
     return {
         "status": "online",
         "engine": "Perchance Multi-Worker Neural Diffusion Engine",
+        "storage_mode": "Zero-Disk Stream Proxy",
         "websocket": "/ws/generate",
         "total_images": len(gallery),
         **stats,
@@ -396,9 +398,93 @@ async def get_gallery():
     return JSONResponse(content=list(reversed(gallery)))
 
 
+@app.get("/api/image/{item_id}")
+async def stream_image(item_id: str):
+    """Stream image on-the-fly directly to the browser without saving to VPS disk."""
+    gallery = load_gallery()
+    item = next((img for img in gallery if img.get("id") == item_id), None)
+    if not item:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    dl_url = item.get("download_url", "")
+    if not dl_url:
+        raise HTTPException(status_code=404, detail="Image source unavailable")
+
+    # If base64 data URL
+    if dl_url.startswith("data:image"):
+        try:
+            header, b64_str = dl_url.split(",", 1)
+            img_bytes = base64.b64decode(b64_str)
+            return StreamingResponse(
+                io.BytesIO(img_bytes),
+                media_type="image/jpeg",
+                headers={"Cache-Control": "public, max-age=31536000"}
+            )
+        except Exception:
+            raise HTTPException(status_code=500, detail="Invalid image payload")
+
+    # Stream from external CDN URL on-the-fly
+    async def image_stream():
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            async with client.stream("GET", dl_url) as response:
+                if response.status_code != 200:
+                    raise HTTPException(status_code=response.status_code, detail="Remote stream error")
+                async for chunk in response.aiter_bytes():
+                    yield chunk
+
+    return StreamingResponse(
+        image_stream(),
+        media_type="image/jpeg",
+        headers={
+            "Cache-Control": "public, max-age=31536000",
+            "Content-Disposition": "inline"
+        }
+    )
+
+
+@app.get("/api/download/{item_id}")
+async def download_image(item_id: str):
+    """Download image under your custom domain link as a saved attachment."""
+    gallery = load_gallery()
+    item = next((img for img in gallery if img.get("id") == item_id), None)
+    if not item:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    dl_url = item.get("download_url", "")
+    if not dl_url:
+        raise HTTPException(status_code=404, detail="Image source unavailable")
+
+    filename = f"perchance_{item_id}.jpeg"
+
+    # If base64 data URL
+    if dl_url.startswith("data:image"):
+        header, b64_str = dl_url.split(",", 1)
+        img_bytes = base64.b64decode(b64_str)
+        return StreamingResponse(
+            io.BytesIO(img_bytes),
+            media_type="image/jpeg",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+
+    # Stream from external CDN
+    async def download_stream():
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            async with client.stream("GET", dl_url) as response:
+                if response.status_code != 200:
+                    raise HTTPException(status_code=response.status_code, detail="Remote download error")
+                async for chunk in response.aiter_bytes():
+                    yield chunk
+
+    return StreamingResponse(
+        download_stream(),
+        media_type="image/jpeg",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
 @app.delete("/api/gallery/{item_id}")
 async def delete_gallery_item(item_id: str):
-    """Delete an item from the gallery and remove its file from disk."""
+    """Delete an item from the gallery metadata (Zero-disk cleanup)."""
     async with _gallery_lock:
         gallery = load_gallery()
         item_to_delete = None
@@ -413,22 +499,13 @@ async def delete_gallery_item(item_id: str):
         if not item_to_delete:
             raise HTTPException(status_code=404, detail="Image not found in gallery")
 
-        filename = item_to_delete.get("filename")
-        if filename:
-            filepath = os.path.join(OUTPUTS_DIR, filename)
-            if os.path.exists(filepath):
-                try:
-                    os.remove(filepath)
-                except Exception as e:
-                    print(f"Error removing file {filepath}: {e}")
-
         save_gallery(new_gallery)
     return {"status": "success", "deleted_id": item_id}
 
 
 @app.post("/api/generate")
 async def generate_images_http(req: GenerateRequest):
-    """Generate 1 to 4 images using Perchance Engine via REST."""
+    """Generate 1 to 4 images using Perchance Engine via REST (Zero-disk mode)."""
     prompt = req.prompt.strip()
     if not prompt:
         raise HTTPException(status_code=400, detail="Prompt cannot be empty")
@@ -462,17 +539,16 @@ async def generate_images_http(req: GenerateRequest):
                 style=style_clean,
             ):
                 item_id = str(uuid.uuid4())[:8]
-                timestamp = int(time.time())
-                ext = result.file_extension or "jpeg"
-                filename = f"gen_{timestamp}_{item_id}.{ext}"
-                filepath = os.path.join(OUTPUTS_DIR, filename)
 
-                result.save(filepath)
+                # Determine effective image download URL without writing to disk
+                effective_url = result.download_url
+                if not effective_url or not effective_url.startswith("http"):
+                    effective_url = f"data:image/jpeg;base64,{base64.b64encode(result.image_bytes).decode('ascii')}"
 
                 gallery_entry = {
                     "id": item_id,
-                    "filename": filename,
-                    "url": f"/outputs/{filename}",
+                    "url": f"/api/image/{item_id}",
+                    "download_link": f"/api/download/{item_id}",
                     "prompt": prompt,
                     "style": style_clean or "Default",
                     "shape": shape_val,
@@ -482,7 +558,7 @@ async def generate_images_http(req: GenerateRequest):
                     "negative_prompt": req.negative_prompt,
                     "size_bytes": len(result.image_bytes),
                     "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "download_url": result.download_url,
+                    "download_url": effective_url,
                     "worker_id": worker.worker_id,
                 }
 
@@ -507,7 +583,7 @@ async def generate_images_http(req: GenerateRequest):
 
 @app.websocket("/ws/generate")
 async def websocket_generate_endpoint(websocket: WebSocket):
-    """WebSocket endpoint with live queue streaming and multi-worker concurrent execution."""
+    """WebSocket endpoint with live queue streaming and Zero-Disk proxy execution."""
     await websocket.accept()
     try:
         while True:
@@ -577,17 +653,15 @@ async def websocket_generate_endpoint(websocket: WebSocket):
                 ):
                     item_idx += 1
                     item_id = str(uuid.uuid4())[:8]
-                    timestamp = int(time.time())
-                    ext = result.file_extension or "jpeg"
-                    filename = f"gen_{timestamp}_{item_id}.{ext}"
-                    filepath = os.path.join(OUTPUTS_DIR, filename)
 
-                    result.save(filepath)
+                    effective_url = result.download_url
+                    if not effective_url or not effective_url.startswith("http"):
+                        effective_url = f"data:image/jpeg;base64,{base64.b64encode(result.image_bytes).decode('ascii')}"
 
                     gallery_entry = {
                         "id": item_id,
-                        "filename": filename,
-                        "url": f"/outputs/{filename}",
+                        "url": f"/api/image/{item_id}",
+                        "download_link": f"/api/download/{item_id}",
                         "prompt": prompt,
                         "style": style_clean or "Default",
                         "shape": shape_val,
@@ -597,7 +671,7 @@ async def websocket_generate_endpoint(websocket: WebSocket):
                         "negative_prompt": negative_prompt,
                         "size_bytes": len(result.image_bytes),
                         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "download_url": result.download_url,
+                        "download_url": effective_url,
                         "worker_id": worker.worker_id,
                     }
 
@@ -638,7 +712,6 @@ async def websocket_generate_endpoint(websocket: WebSocket):
 
 
 # Mount static assets directory
-app.mount("/outputs", StaticFiles(directory=OUTPUTS_DIR), name="outputs")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 

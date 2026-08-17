@@ -1,12 +1,13 @@
-# Perchance Image Generator (Python Library v2.3)
+# Perchance Image Generator (Python Library v2.4)
 
-A modern Object-Oriented, asynchronous Python library and high-concurrency Web Studio for generating AI images using the [Perchance AI Text-to-Image Generator](https://perchance.org/ai-text-to-image-generator).
+A modern Object-Oriented, asynchronous Python library and high-concurrency Web Studio for generating AI images using the [Perchance AI Text-to-Image Generator](https://perchance.org/ai-text-to-image-generator) featuring **Zero-Disk Storage Streaming Proxy**.
 
 ---
 
 ## Features
 
 - 🎨 **Asynchronous & Object-Oriented:** Modern Python API using `async/await` and context managers (`async with PerchanceGenerator() as generator:`).
+- 💾 **Zero-Disk Storage Mode:** The server uses **0 MB disk storage for images**. Images are proxied and streamed on-the-fly directly to the browser under your custom domain links (`/api/image/{id}` and `/api/download/{id}`).
 - 👥 **High-Concurrency Multi-Worker Pool:** Built-in `AsyncGeneratorPoolManager` in the Web Studio with $N$ concurrent workers for simultaneous multi-user generations.
 - ⏳ **Smart Asynchronous FIFO Queue:** Real-time queue positioning and live wait countdowns over WebSockets when server capacity is full.
 - ⚡ **High Performance Session Reuse:** Single-session reuse to generate batches of images (`generate_batch`) without reloading the page.
@@ -81,9 +82,9 @@ if __name__ == "__main__":
 
 ---
 
-## 🌐 Interactive Multi-User Web Studio
+## 🌐 Interactive Multi-User Web Studio (Zero-Disk Mode)
 
-To launch the web interface locally or on a VPS:
+To launch the web interface:
 
 ```bash
 # Default: 3 concurrent workers (configurable via MAX_WORKERS)
@@ -91,6 +92,9 @@ python run_webapp.py
 ```
 
 Then open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** (or your VPS IP) in your browser.
+
+- **Viewing Images:** `http://<your-host>:8000/api/image/<image-id>` (Streams directly from source on demand, 0 MB disk used).
+- **Downloading Images:** `http://<your-host>:8000/api/download/<image-id>` (Downloads as named attachment).
 
 ---
 

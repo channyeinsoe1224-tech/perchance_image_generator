@@ -574,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <button type="button" class="overlay-btn btn-zoom" title="Inspect HD">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
             </button>
-            <a href="${item.url}" download="${item.filename || 'perchance_art.jpeg'}" class="overlay-btn" title="Download">
+            <a href="${item.download_link || `/api/download/${item.id}`}" class="overlay-btn" title="Download Image">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
             </a>
             <button type="button" class="overlay-btn btn-del" title="Delete Artwork">
@@ -749,8 +749,8 @@ document.addEventListener('DOMContentLoaded', () => {
     modalResolutionVal.textContent = item.resolution || '768x768';
     modalSeedVal.textContent = item.seed !== undefined ? item.seed : '-1';
     modalGuidanceVal.textContent = item.guidance_scale || '7.0';
-    modalDownloadLink.href = item.url;
-    modalDownloadLink.download = item.filename || 'perchance_creation.jpeg';
+    modalDownloadLink.href = item.download_link || `/api/download/${item.id}`;
+    modalDownloadLink.download = `perchance_${item.id}.jpeg`;
 
     lightboxModal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
