@@ -195,6 +195,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const card = createArtworkCard(item);
     currentImagesGrid.appendChild(card);
+
+    // Update grid layout class based on how many images we have so far
+    const count = wsAccumulatedResults.length;
+    currentImagesGrid.className = `current-images-grid grid-count-${count}`;
   }
 
   // =========================================================================

@@ -1320,11 +1320,39 @@ a {
   border-color: var(--accent-primary);
 }
 
+/* Results Canvas — dynamic count-based grid layouts */
 .current-images-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 14px;
   width: 100%;
+  align-items: start;
+  /* Default (1 image): centered single column */
+  grid-template-columns: 1fr;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+/* 2 images: side by side */
+.current-images-grid.grid-count-2 {
+  grid-template-columns: repeat(2, 1fr);
+  max-width: 100%;
+}
+
+/* 3 images: 3 columns */
+.current-images-grid.grid-count-3 {
+  grid-template-columns: repeat(3, 1fr);
+  max-width: 100%;
+}
+
+/* 4 images: 2 x 2 */
+.current-images-grid.grid-count-4 {
+  grid-template-columns: repeat(2, 1fr);
+  max-width: 100%;
+}
+
+/* Cap thumbnail height in studio view so images never push footer off screen */
+.canvas-results .artwork-thumb-wrapper {
+  max-height: 55vh;
 }
 
 /* Image Card Component */
