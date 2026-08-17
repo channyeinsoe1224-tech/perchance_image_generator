@@ -717,8 +717,11 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/")
 async def serve_index():
-    """Serve main Single-Page Web Application."""
+    """Serve main Single-Page Web Application with cache-busting."""
     index_path = os.path.join(STATIC_DIR, "index.html")
     if os.path.exists(index_path):
-        return FileResponse(index_path)
+        return FileResponse(
+            index_path,
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+        )
     return {"message": "AI Studio UI loading..."}
