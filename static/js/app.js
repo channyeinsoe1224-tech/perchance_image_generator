@@ -451,8 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!selectedAdvancedDesc) return;
     const cfg = state.guidanceScale.toFixed(1);
     const seed = state.isRandomSeed ? 'Random Seed' : `Seed #${seedInput.value || 'Custom'}`;
-    const batch = `Batch: ${state.batchCount}`;
-    selectedAdvancedDesc.textContent = `CFG: ${cfg} • ${seed} • ${batch}`;
+    selectedAdvancedDesc.textContent = `CFG: ${cfg} • ${seed}`;
   }
 
   function renderEnhancers(enhancers) {
