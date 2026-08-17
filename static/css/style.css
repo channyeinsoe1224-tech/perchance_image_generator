@@ -1827,10 +1827,13 @@ a {
   }
 
   .app-header {
-    height: 52px;
+    height: 50px;
     padding: 0 10px;
-    gap: 8px;
+    gap: 6px;
+    display: flex;
+    align-items: center;
     justify-content: space-between;
+    overflow: hidden;
   }
 
   .header-brand {
@@ -1841,15 +1844,17 @@ a {
   .brand-logo {
     width: 28px;
     height: 28px;
+    border-radius: var(--radius-sm);
   }
 
   .brand-logo svg {
-    width: 16px;
-    height: 16px;
+    width: 15px;
+    height: 15px;
   }
 
   .brand-title {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 700;
     white-space: nowrap;
   }
 
@@ -1858,24 +1863,24 @@ a {
   }
 
   .header-nav {
-    gap: 3px;
+    gap: 2px;
     padding: 2px;
     flex-shrink: 0;
   }
 
   .nav-tab {
     padding: 5px 8px;
-    font-size: 0.74rem;
+    font-size: 0.72rem;
     gap: 4px;
   }
 
   .nav-tab svg {
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
   }
 
   .header-status {
-    gap: 6px;
+    gap: 4px;
     flex-shrink: 0;
   }
 
@@ -1891,13 +1896,12 @@ a {
     height: 12px;
   }
 
-  .status-label {
-    display: none;
+  .status-indicator {
+    display: none; /* Keep header clean on mobile */
   }
 
-  .status-indicator {
-    padding: 5px;
-    border-radius: 50%;
+  .status-label {
+    display: none;
   }
 
   /* Single Column Studio Flow */
@@ -2092,24 +2096,45 @@ a {
   }
 }
 
-/* Ultra-compact Phones (<= 400px) */
-@media (max-width: 400px) {
+/* Small Mobile Screens (<= 480px) */
+@media (max-width: 480px) {
+  .app-header {
+    padding: 0 8px;
+    gap: 6px;
+  }
+
+  .brand-title {
+    display: none; /* Show only brand logo on phones under 480px */
+  }
+
+  .nav-tab {
+    padding: 5px 8px;
+    font-size: 0.72rem;
+    gap: 4px;
+  }
+
+  .worker-capacity-badge {
+    padding: 4px 7px;
+    font-size: 0.68rem;
+    gap: 4px;
+  }
+}
+
+/* Ultra-compact Phones (<= 380px) */
+@media (max-width: 380px) {
   .app-header {
     padding: 0 6px;
     gap: 4px;
   }
 
-  .brand-title {
-    font-size: 0.78rem;
-  }
-
   .nav-tab {
     padding: 4px 6px;
-    font-size: 0.7rem;
+    font-size: 0.68rem;
+    gap: 3px;
   }
 
   .worker-capacity-badge {
-    padding: 3px 5px;
+    padding: 3px 6px;
     font-size: 0.64rem;
   }
 
