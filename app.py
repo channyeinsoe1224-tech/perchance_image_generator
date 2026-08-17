@@ -1,13 +1,14 @@
-"""Perchance AI Studio — Web Application Backend with WebSocket Live Streaming.
+"""Perchance AI Studio — High-Concurrency Web Application Backend with Multi-Worker Pool.
 
-FastAPI-based server providing RESTful and WebSocket (ws://) endpoints for generating AI images
-using the Perchance Deep Neural Diffusion Engine with real-time streaming progress,
-persistent gallery management, and web interface serving.
+FastAPI server providing scalable RESTful and WebSocket (ws://) endpoints with an asynchronous
+worker pool for concurrent AI image generation, real-time queue management, live streaming progress,
+and persistent gallery storage.
 """
 
 import asyncio
 import json
 import os
+import platform
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -35,9 +36,9 @@ os.makedirs(OUTPUTS_DIR, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(PROFILE_DIR, exist_ok=True)
 
-# Global generator instance and lock for synchronized Perchance browser automation
-_generator: Optional[PerchanceGenerator] = None
-_generator_lock = asyncio.Lock()
+# Concurrency configuration
+MAX_WORKERS = max(1, int(os.environ.get("MAX_WORKERS", "3")))
+_gallery_lock = asyncio.Lock()
 
 
 def load_gallery() -> List[Dict[str, Any]]:
@@ -70,204 +71,272 @@ PRESETS = {
         },
         {
             "id": "photorealistic",
-            "name": "Photorealistic",
-            "style_prompt": "Photorealistic",
+            "name": "Photorealistic 8K",
+            "style_prompt": "photorealistic, 8k resolution, raw photo, highly detailed, sharp focus, professional photography, studio lighting",
             "badge": "Popular",
-            "description": "Ultra-sharp photography, 8k uhd, cinematic lighting",
-            "category": "Realistic",
+            "description": "Crisp, lifelike details with studio photography realism",
+            "category": "Realism",
         },
         {
             "id": "anime",
             "name": "Anime & Manga",
-            "style_prompt": "Anime",
-            "badge": "Popular",
-            "description": "Vibrant Japanese anime art style, crisp lineart, Studio aesthetic",
-            "category": "Illustration",
-        },
-        {
-            "id": "digital_painting",
-            "name": "Digital Painting",
-            "style_prompt": "Digital Painting",
-            "badge": "Artistic",
-            "description": "Rich brush strokes, smooth lighting, ArtStation trending",
+            "style_prompt": "anime aesthetic, Makoto Shinkai style, vibrant colors, detailed line art, masterpiece, high quality illustration",
+            "badge": "Anime",
+            "description": "Vibrant Japanese anime illustration with expressive lines",
             "category": "Artistic",
         },
         {
             "id": "cyberpunk",
             "name": "Cyberpunk Neon",
-            "style_prompt": "Cyberpunk",
-            "badge": "Trending",
-            "description": "Futuristic high-tech cityscape, holographic neon glows, rainy reflections",
+            "style_prompt": "cyberpunk style, neon glow, futuristic city, volumetric lighting, reflections on wet asphalt, octane render, 8k",
+            "badge": "Sci-Fi",
+            "description": "High-tech dystopian atmosphere drenched in neon illumination",
             "category": "Sci-Fi",
         },
         {
             "id": "ghibli",
             "name": "Studio Ghibli",
-            "style_prompt": "Studio Ghibli",
+            "style_prompt": "Studio Ghibli style, Hayao Miyazaki, hand-painted aesthetic, lush green landscapes, whimsical, nostalgic warm lighting",
             "badge": "Artistic",
-            "description": "Nostalgic anime aesthetic, lush painted backgrounds, warm atmosphere",
-            "category": "Illustration",
+            "description": "Dreamy, nostalgic hand-painted fantasy animation aesthetic",
+            "category": "Artistic",
         },
         {
-            "id": "render3d",
-            "name": "3D Render",
-            "style_prompt": "3D Render",
-            "badge": "Sharp",
-            "description": "Cinema4D Octane render, raytracing, subsurface scattering shaders",
+            "id": "3d_render",
+            "name": "3D Pixar / Disney",
+            "style_prompt": "3D character render, Pixar style, Disney animation, ray tracing, cute, subsurface scattering, smooth lighting",
+            "badge": "3D",
+            "description": "Charming 3D stylized CGI character animation look",
             "category": "3D",
         },
         {
             "id": "cinematic",
             "name": "Cinematic Film",
-            "style_prompt": "Cinematic Film",
-            "badge": "Film",
-            "description": "35mm anamorphic lens, shallow depth of field, dramatic color grading",
-            "category": "Realistic",
-        },
-        {
-            "id": "concept_art",
-            "name": "Concept Art",
-            "style_prompt": "Concept Art",
-            "badge": "Design",
-            "description": "Video game visual development, matte painting, dynamic atmosphere",
-            "category": "Artistic",
+            "style_prompt": "cinematic still, 35mm film grain, dramatic lighting, anamorphic lens flare, movie scene, color graded, ultra detailed",
+            "badge": "Cinema",
+            "description": "Dramatic Hollywood movie still with anamorphic lighting",
+            "category": "Realism",
         },
         {
             "id": "watercolor",
-            "name": "Watercolor",
-            "style_prompt": "Watercolor",
+            "name": "Watercolor Painting",
+            "style_prompt": "delicate watercolor painting, soft paper texture, artistic color bleeds, vibrant ink splatter, loose brushstrokes",
             "badge": "Traditional",
-            "description": "Delicate color bleeds, textured watercolor paper, soft pastel tones",
-            "category": "Traditional",
+            "description": "Fluid watercolors with artistic paper texture bleeds",
+            "category": "Artistic",
         },
         {
             "id": "oil_painting",
-            "name": "Oil Painting",
-            "style_prompt": "Oil Painting",
+            "name": "Classic Oil Painting",
+            "style_prompt": "oil painting on canvas, visible impasto brushstrokes, rich classical colors, Rembrandt lighting, fine art masterpiece",
             "badge": "Traditional",
-            "description": "Impasto canvas texture, classical lighting, chiaroscuro masters style",
+            "description": "Textured oil on canvas with deep Renaissance lighting",
             "category": "Traditional",
         },
         {
             "id": "pixel_art",
             "name": "Retro Pixel Art",
-            "style_prompt": "Pixel Art",
+            "style_prompt": "16-bit pixel art, retro gaming aesthetic, vibrant limited palette, clean pixel clusters, nostalgic arcade look",
             "badge": "Retro",
-            "description": "16-bit detailed pixel masterpiece, nostalgic arcade palette",
-            "category": "Retro",
-        },
-        {
-            "id": "synthwave",
-            "name": "Synthwave 80s",
-            "style_prompt": "Synthwave",
-            "badge": "Retro",
-            "description": "Outrun retro wave, wireframe grid, purple sunset, chrome reflections",
+            "description": "Nostalgic 16-bit vintage video game pixel artwork",
             "category": "Retro",
         },
         {
             "id": "dark_fantasy",
-            "name": "Dark Fantasy",
-            "style_prompt": "Dark Fantasy",
-            "badge": "Mood",
-            "description": "Eldritch gothic atmosphere, dark souls aesthetic, dramatic rim lighting",
-            "category": "Artistic",
+            "name": "Dark Fantasy / Elden",
+            "style_prompt": "dark fantasy, gothic, ominous foggy atmosphere, Elden Ring aesthetic, intricate armor, dramatic chiaroscuro, 8k",
+            "badge": "Fantasy",
+            "description": "Grim, moody gothic fantasy with epic scale and lore",
+            "category": "Fantasy",
+        },
+        {
+            "id": "steampunk",
+            "name": "Steampunk Victorian",
+            "style_prompt": "steampunk aesthetic, polished brass gears, copper pipes, Victorian fashion, steam haze, intricate mechanical parts",
+            "badge": "Sci-Fi",
+            "description": "Retro-futuristic steam-powered machinery and brass elegance",
+            "category": "Sci-Fi",
+        },
+        {
+            "id": "synthwave",
+            "name": "Synthwave / Retro 80s",
+            "style_prompt": "synthwave 80s retro aesthetic, purple and magenta grid, wireframe neon sun, chrome typography, outrun style",
+            "badge": "Retro",
+            "description": "80s outrun vaporwave grids with glowing wireframe sunsets",
+            "category": "Retro",
+        },
+        {
+            "id": "concept_art",
+            "name": "Epic Concept Art",
+            "style_prompt": "epic concept art, matte painting, trending on ArtStation, colossal scale, atmospheric depth, highly detailed environment",
+            "badge": "Concept",
+            "description": "Grand panoramic game and cinema concept art",
+            "category": "Concept",
         },
         {
             "id": "isometric",
-            "name": "Isometric 3D",
-            "style_prompt": "Isometric 3D",
+            "name": "Isometric 3D Diorama",
+            "style_prompt": "isometric 3D diorama, low poly cute miniature world, tilt-shift, bright clean lighting, Blender render, detailed",
             "badge": "3D",
-            "description": "Miniature diorama, clean isometric angle, tilt-shift focus, low-poly charm",
+            "description": "Charming miniature tilt-shift isometric voxel diorama",
             "category": "3D",
         },
     ],
     "enhancers": {
-        "Lighting": [
-            "golden hour sunlight",
-            "volumetric cinematic rays",
-            "soft studio softbox lighting",
-            "dramatic rim light",
-            "bioluminescent glow",
-            "moody neon lighting",
-            "candlelight glow",
+        "lighting": [
+            {"name": "Volumetric Rays", "tag": "volumetric god rays lighting"},
+            {"name": "Golden Hour", "tag": "warm golden hour sunset light"},
+            {"name": "Moody Neon", "tag": "atmospheric neon rim lighting"},
+            {"name": "Studio Softbox", "tag": "diffused studio softbox light"},
+            {"name": "Bioluminescence", "tag": "glowing bioluminescent ambient"},
         ],
-        "Detail & Quality": [
-            "masterpiece, 8k uhd",
-            "hyperdetailed textures",
-            "unreal engine 5 render",
-            "sharp focus",
-            "intricate micro-details",
-            "award winning composition",
+        "detail": [
+            {"name": "8K Hyperdetail", "tag": "8k resolution, ultra-detailed textures"},
+            {"name": "Masterpiece", "tag": "award-winning masterpiece, trending on artstation"},
+            {"name": "Photorealistic", "tag": "photorealistic, hyperrealistic, octane render"},
+            {"name": "Sharp Focus", "tag": "tack sharp focus, highly intricate"},
         ],
-        "Camera & Lens": [
-            "35mm f/1.4 lens",
-            "wide angle perspective",
-            "shallow depth of field, bokeh",
-            "macro photography",
-            "drone aerial view",
-            "anamorphic widescreen",
+        "camera": [
+            {"name": "Macro Close-up", "tag": "macro shot, shallow depth of field"},
+            {"name": "Wide Angle", "tag": "wide angle cinematic view, 24mm lens"},
+            {"name": "Drone Overhead", "tag": "dramatic top-down bird eye view"},
+            {"name": "Portrait 85mm", "tag": "85mm f/1.4 portrait lens, creamy bokeh"},
         ],
-        "Mood & Vibe": [
-            "ethereal and mystical",
-            "epic atmosphere",
-            "cozy and warm ambiance",
-            "gloomy and mysterious",
-            "vibrant and energetic",
-            "minimalist serene",
+        "mood": [
+            {"name": "Ethereal & Dreamy", "tag": "ethereal, dreamy mystical atmosphere"},
+            {"name": "Epic & Majestic", "tag": "epic scale, breathtaking, majestic"},
+            {"name": "Dark & Ominous", "tag": "dark, moody, ominous atmospheric tension"},
+            {"name": "Whimsical Joy", "tag": "cheerful, vibrant, whimsical, joyful"},
         ],
     },
-    "prompts": [
-        "A cyberpunk street market in Neo-Tokyo with glowing food stalls, rainy pavement reflections, and flying vehicles",
-        "A mystical ancient library inside a massive hollow redwood tree, floating glowing lanterns, and magical dust",
-        "A serene samurai warrior meditating under falling cherry blossom petals near a misty mountain waterfall",
-        "An adorable robotic kitten playing with a holographic butterfly in a sunlit botanical greenhouse",
-        "An astronaut discovering an alien crystalline garden on a purple planet under two giant moons",
-        "A cozy Nordic cottage covered in fresh winter snow with warm yellow light glowing from the windows at twilight",
-        "An ethereal phoenix made of golden flames soaring over a volcanic mountain range at sunset",
-        "A steampunk airship navigating through towering floating islands and cascading clouds",
+    "sample_prompts": [
+        "A majestic mechanical dragon with translucent crystal wings soaring over neon-lit futuristic Tokyo at midnight",
+        "Cozy hidden library inside a giant ancient hollow redwood tree with warm fireflies and floating lanterns",
+        "Serene Japanese garden in autumn with vibrant red maple leaves floating on a crystal koi pond, 8k",
+        "A cute astronaut red panda discovering glowing alien flora on an unexplored purple moon",
+        "Cyberpunk street noodle vendor in rainy Neo-Seoul with neon reflections on wet cobblestones",
+        "An intricate steampunk mechanical pocket watch revealing a tiny floating miniature universe inside",
+        "Ethereal ice palace on top of aurora borealis mountains under a starry cosmic sky, cinematic still",
+        "A magical apothecary shop filled with glowing potions, herb bundles, and sleeping feline familiars",
     ],
 }
 
 
-class GenerateRequest(BaseModel):
-    prompt: str = Field(..., min_length=1, max_length=2000)
-    negative_prompt: str = Field(default="")
-    style: Optional[str] = Field(default=None)
-    shape: str = Field(default="square")
-    guidance_scale: float = Field(default=7.0, ge=1.0, le=30.0)
-    seed: int = Field(default=-1)
-    count: int = Field(default=1, ge=1, le=4)
+# ==============================================================================
+# Multi-Worker Pool & Queue Architecture
+# ==============================================================================
+class PerchanceWorker:
+    """Individual worker encapsulating an independent Perchance generation session."""
+
+    def __init__(self, worker_id: int):
+        self.worker_id = worker_id
+        self.profile_dir = os.path.join(PROFILE_DIR, f"worker_{worker_id}")
+        os.makedirs(self.profile_dir, exist_ok=True)
+        self.generator = PerchanceGenerator(
+            user_data_dir=self.profile_dir,
+            timeout=120.0,
+        )
+        self.busy = False
+        self.jobs_count = 0
+
+    async def start(self):
+        await self.generator.start()
+
+    async def close(self):
+        await self.generator.close()
+
+
+class AsyncGeneratorPoolManager:
+    """Manages a pool of concurrent Perchance workers with an asynchronous FIFO queue."""
+
+    def __init__(self, size: int = MAX_WORKERS):
+        self.size = size
+        self.workers: List[PerchanceWorker] = []
+        self.queue: asyncio.Queue[PerchanceWorker] = asyncio.Queue()
+        self.waiting_requests = 0
+        self._lock = asyncio.Lock()
+
+    async def start(self):
+        print(f"[AI Studio Pool] Initializing pool with {self.size} concurrent workers...")
+        for i in range(1, self.size + 1):
+            worker = PerchanceWorker(worker_id=i)
+            try:
+                await worker.start()
+                print(f"[AI Studio Pool] Worker #{i} ready.")
+            except Exception as e:
+                print(f"[AI Studio Pool] Worker #{i} startup note: {e}")
+            self.workers.append(worker)
+            await self.queue.put(worker)
+        print(f"[AI Studio Pool] All {len(self.workers)} workers online.")
+
+    @asynccontextmanager
+    async def acquire(self, on_queue_update=None):
+        async with self._lock:
+            self.waiting_requests += 1
+            pos = self.waiting_requests
+
+        if on_queue_update and self.queue.empty():
+            await on_queue_update(position=pos, estimated_wait=pos * 14)
+
+        worker = await self.queue.get()
+
+        async with self._lock:
+            self.waiting_requests = max(0, self.waiting_requests - 1)
+
+        worker.busy = True
+        try:
+            yield worker
+        finally:
+            worker.busy = False
+            worker.jobs_count += 1
+            # Auto-recycle context after 35 jobs to prevent memory accumulation
+            if worker.jobs_count >= 35:
+                print(f"[AI Studio Pool] Recycling Worker #{worker.worker_id} for memory maintenance...")
+                try:
+                    await worker.close()
+                    await worker.start()
+                    worker.jobs_count = 0
+                except Exception as err:
+                    print(f"[AI Studio Pool] Worker #{worker.worker_id} recycle error: {err}")
+            await self.queue.put(worker)
+
+    async def close(self):
+        print("[AI Studio Pool] Shutting down all workers...")
+        for worker in self.workers:
+            try:
+                await worker.close()
+            except Exception:
+                pass
+        print("[AI Studio Pool] Shutdown complete.")
+
+    def get_stats(self) -> Dict[str, Any]:
+        busy = sum(1 for w in self.workers if w.busy)
+        return {
+            "total_workers": len(self.workers),
+            "busy_workers": busy,
+            "available_workers": max(0, len(self.workers) - busy),
+            "waiting_in_queue": self.waiting_requests,
+        }
+
+
+# Global pool manager instance
+_pool_manager = AsyncGeneratorPoolManager(size=MAX_WORKERS)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _generator
-    print("[AI Studio] Initializing Perchance Generator Engine...")
-    headless_mode = os.environ.get("HEADLESS", "false").lower() == "true"
-    _generator = PerchanceGenerator(
-        user_data_dir=PROFILE_DIR,
-        headless=headless_mode,
-        timeout=120.0
-    )
-    try:
-        await _generator.start()
-        print("[AI Studio] Perchance Generator active and ready.")
-    except Exception as e:
-        print(f"[AI Studio] Engine init note: {e}")
+    print("[AI Studio] Starting Perchance Multi-Worker Service...")
+    await _pool_manager.start()
     yield
-    print("[AI Studio] Shutting down Perchance Generator...")
-    if _generator:
-        try:
-            await _generator.close()
-        except Exception:
-            pass
+    print("[AI Studio] Shutting down Perchance Service...")
+    await _pool_manager.close()
     print("[AI Studio] Shutdown complete.")
 
 
 app = FastAPI(
     title="Perchance AI Image Studio",
-    description="Perchance AI Text-to-Image Studio with WebSocket Live Streaming",
-    version="2.2.0",
+    description="Perchance AI Multi-Worker Studio with WebSocket Live Streaming and Queue Management",
+    version="2.3.0",
     lifespan=lifespan,
 )
 
@@ -278,6 +347,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Request schemas
+class GenerateRequest(BaseModel):
+    prompt: str = Field(..., description="Prompt description for the image")
+    shape: str = Field("square", description="Image aspect ratio: square, landscape, portrait")
+    style: Optional[str] = Field(None, description="Visual art style preset")
+    negative_prompt: str = Field("", description="Elements to avoid")
+    guidance_scale: float = Field(7.0, ge=1.0, le=30.0, description="Guidance scale")
+    seed: int = Field(-1, description="Generation seed (-1 for random)")
+    count: int = Field(1, ge=1, le=4, description="Number of images to generate (1-4)")
 
 
 @app.get("/favicon.ico", include_in_schema=False)
@@ -297,14 +377,15 @@ async def get_presets():
 
 @app.get("/api/status")
 async def get_status():
-    """Get system and engine status."""
+    """Get system, pool, and engine status."""
     gallery = load_gallery()
+    stats = _pool_manager.get_stats()
     return {
         "status": "online",
-        "engine": "Perchance Deep Neural Diffusion",
-        "websocket": "ws://127.0.0.1:8000/ws/generate",
+        "engine": "Perchance Multi-Worker Neural Diffusion Engine",
+        "websocket": "/ws/generate",
         "total_images": len(gallery),
-        "is_busy": _generator_lock.locked(),
+        **stats,
     }
 
 
@@ -318,36 +399,36 @@ async def get_gallery():
 @app.delete("/api/gallery/{item_id}")
 async def delete_gallery_item(item_id: str):
     """Delete an item from the gallery and remove its file from disk."""
-    gallery = load_gallery()
-    item_to_delete = None
-    new_gallery = []
+    async with _gallery_lock:
+        gallery = load_gallery()
+        item_to_delete = None
+        new_gallery = []
 
-    for item in gallery:
-        if item.get("id") == item_id:
-            item_to_delete = item
-        else:
-            new_gallery.append(item)
+        for item in gallery:
+            if item.get("id") == item_id:
+                item_to_delete = item
+            else:
+                new_gallery.append(item)
 
-    if not item_to_delete:
-        raise HTTPException(status_code=404, detail="Image not found in gallery")
+        if not item_to_delete:
+            raise HTTPException(status_code=404, detail="Image not found in gallery")
 
-    filename = item_to_delete.get("filename")
-    if filename:
-        filepath = os.path.join(OUTPUTS_DIR, filename)
-        if os.path.exists(filepath):
-            try:
-                os.remove(filepath)
-            except Exception as e:
-                print(f"Error removing file {filepath}: {e}")
+        filename = item_to_delete.get("filename")
+        if filename:
+            filepath = os.path.join(OUTPUTS_DIR, filename)
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except Exception as e:
+                    print(f"Error removing file {filepath}: {e}")
 
-    save_gallery(new_gallery)
+        save_gallery(new_gallery)
     return {"status": "success", "deleted_id": item_id}
 
 
 @app.post("/api/generate")
 async def generate_images_http(req: GenerateRequest):
     """Generate 1 to 4 images using Perchance Engine via REST."""
-    global _generator
     prompt = req.prompt.strip()
     if not prompt:
         raise HTTPException(status_code=400, detail="Prompt cannot be empty")
@@ -369,19 +450,9 @@ async def generate_images_http(req: GenerateRequest):
     results = []
     start_time = time.time()
 
-    async with _generator_lock:
-        if not _generator or not _generator._context:
-            headless_mode = os.environ.get("HEADLESS", "false").lower() == "true"
-            _generator = PerchanceGenerator(
-                user_data_dir=PROFILE_DIR,
-                headless=headless_mode,
-                timeout=120.0,
-            )
-            await _generator.start()
-
+    async with _pool_manager.acquire() as worker:
         try:
-            gallery = load_gallery()
-            async for result in _generator.generate_batch(
+            async for result in worker.generator.generate_batch(
                 prompt=prompt,
                 count=req.count,
                 shape=shape_enum,
@@ -412,11 +483,16 @@ async def generate_images_http(req: GenerateRequest):
                     "size_bytes": len(result.image_bytes),
                     "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "download_url": result.download_url,
+                    "worker_id": worker.worker_id,
                 }
-                gallery.append(gallery_entry)
+
+                async with _gallery_lock:
+                    gallery = load_gallery()
+                    gallery.append(gallery_entry)
+                    save_gallery(gallery)
+
                 results.append(gallery_entry)
 
-            save_gallery(gallery)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
 
@@ -431,7 +507,7 @@ async def generate_images_http(req: GenerateRequest):
 
 @app.websocket("/ws/generate")
 async def websocket_generate_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for real-time streaming Perchance generation and progress."""
+    """WebSocket endpoint with live queue streaming and multi-worker concurrent execution."""
     await websocket.accept()
     try:
         while True:
@@ -462,32 +538,35 @@ async def websocket_generate_endpoint(websocket: WebSocket):
             start_time = time.time()
             results = []
 
+            # Queue update callback
+            async def send_queue_notice(position: int, estimated_wait: int):
+                try:
+                    await websocket.send_json({
+                        "type": "status",
+                        "stage": f"⏳ Queued: Position #{position} (Est. wait ~{estimated_wait}s)",
+                        "progress": 8,
+                        "queue_position": position,
+                        "estimated_wait": estimated_wait,
+                    })
+                except Exception:
+                    pass
+
             await websocket.send_json({
                 "type": "status",
-                "stage": "Initializing Perchance Session...",
+                "stage": "Assigning worker session...",
                 "progress": 15,
             })
 
-            global _generator
-            async with _generator_lock:
-                if not _generator or not _generator._context:
-                    headless_mode = os.environ.get("HEADLESS", "false").lower() == "true"
-                    _generator = PerchanceGenerator(
-                        user_data_dir=PROFILE_DIR,
-                        headless=headless_mode,
-                        timeout=120.0,
-                    )
-                    await _generator.start()
-
+            async with _pool_manager.acquire(on_queue_update=send_queue_notice) as worker:
                 await websocket.send_json({
                     "type": "status",
-                    "stage": "Injecting parameters & synthesizing diffusion latents...",
-                    "progress": 40,
+                    "stage": f"Worker #{worker.worker_id} active — Synthesizing diffusion latents...",
+                    "progress": 35,
+                    "worker_id": worker.worker_id,
                 })
 
-                gallery = load_gallery()
                 item_idx = 0
-                async for result in _generator.generate_batch(
+                async for result in worker.generator.generate_batch(
                     prompt=prompt,
                     count=count,
                     shape=shape_enum,
@@ -519,23 +598,27 @@ async def websocket_generate_endpoint(websocket: WebSocket):
                         "size_bytes": len(result.image_bytes),
                         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "download_url": result.download_url,
+                        "worker_id": worker.worker_id,
                     }
-                    gallery.append(gallery_entry)
+
+                    async with _gallery_lock:
+                        gallery = load_gallery()
+                        gallery.append(gallery_entry)
+                        save_gallery(gallery)
+
                     results.append(gallery_entry)
 
                     # Stream image over WebSocket immediately
-                    progress_pct = int(40 + (item_idx / count) * 55)
+                    progress_pct = int(35 + (item_idx / count) * 60)
                     await websocket.send_json({
                         "type": "status",
-                        "stage": f"Synthesized image {item_idx}/{count}",
+                        "stage": f"Worker #{worker.worker_id}: Image {item_idx}/{count} generated",
                         "progress": progress_pct,
                     })
                     await websocket.send_json({
                         "type": "image_ready",
                         "item": gallery_entry,
                     })
-
-                save_gallery(gallery)
 
             elapsed = round(time.time() - start_time, 2)
             await websocket.send_json({

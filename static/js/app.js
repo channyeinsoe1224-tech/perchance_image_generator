@@ -157,7 +157,15 @@ document.addEventListener('DOMContentLoaded', () => {
   function handleWebSocketMessage(msg) {
     if (msg.type === 'status') {
       if (genStageTitle) genStageTitle.textContent = msg.stage || 'Processing...';
-      if (genStageDesc) genStageDesc.textContent = `Streaming Perchance neural diffusion (${msg.progress || 0}%)`;
+      if (genStageDesc) {
+        if (msg.queue_position) {
+          genStageDesc.textContent = `Queued request — Estimated wait: ~${msg.estimated_wait || 10}s`;
+        } else if (msg.worker_id) {
+          genStageDesc.textContent = `Worker #${msg.worker_id} synthesizing latents (${msg.progress || 0}%)`;
+        } else {
+          genStageDesc.textContent = `Streaming Perchance neural diffusion (${msg.progress || 0}%)`;
+        }
+      }
       if (progressBarFill && msg.progress) {
         progressBarFill.style.width = `${msg.progress}%`;
       }
@@ -223,9 +231,38 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/status');
       if (res.ok) {
         const data = await res.json();
-        if (data.is_busy) {
+        const workerCountLabel = document.getElementById('workerCountLabel');
+        const workerCapacityBadge = document.getElementById('workerCapacityBadge');
+
+        if (workerCountLabel && data.total_workers) {
+          const busy = data.busy_workers || 0;
+          const total = data.total_workers || 1;
+          const waiting = data.waiting_in_queue || 0;
+
+          if (waiting > 0) {
+            workerCountLabel.textContent = `${waiting} Queued (${busy}/${total} Busy)`;
+            if (workerCapacityBadge) {
+              workerCapacityBadge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+              workerCapacityBadge.style.color = '#fde68a';
+            }
+          } else if (busy > 0) {
+            workerCountLabel.textContent = `${total - busy}/${total} Workers Free`;
+            if (workerCapacityBadge) {
+              workerCapacityBadge.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+              workerCapacityBadge.style.color = '#93c5fd';
+            }
+          } else {
+            workerCountLabel.textContent = `${total} Workers Ready`;
+            if (workerCapacityBadge) {
+              workerCapacityBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+              workerCapacityBadge.style.color = '#6ee7b7';
+            }
+          }
+        }
+
+        if (data.busy_workers > 0) {
           statusIndicator.classList.add('busy');
-          statusLabel.textContent = 'Generating...';
+          statusLabel.textContent = data.waiting_in_queue > 0 ? 'Queue Active' : 'Generating...';
         } else {
           statusIndicator.classList.remove('busy');
           statusLabel.textContent = 'Engine Ready';

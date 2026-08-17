@@ -1,8 +1,8 @@
-# PROJECT_SPEC.md — Perchance Image Generator Library (v2.0)
+# PROJECT_SPEC.md — Perchance Image Generator Library (v2.3)
 
 ## Overview
 
-**Perchance Image Generator** is an Object-Oriented, asynchronous Python library that generates AI images using [Perchance AI Text-to-Image Generator](https://perchance.org/ai-text-to-image-generator).
+**Perchance Image Generator** is an Object-Oriented, asynchronous Python library and high-concurrency web application for generating AI images using [Perchance AI Text-to-Image Generator](https://perchance.org/ai-text-to-image-generator).
 
 ---
 
@@ -26,8 +26,16 @@ perchance_image_generator/
 │   └── capture_network_log.py     # Network logging example
 │
 ├── static/                        # Web app UI frontend (HTML/CSS/JS)
-├── app.py                         # FastAPI backend server with WebSocket live streaming
-├── run_webapp.py                  # Launcher for the interactive AI Web Studio
+│   ├── css/style.css              # Custom responsive stylesheet
+│   ├── js/app.js                  # Frontend WebSocket streaming & queue client
+│   ├── favicon.svg                # Vector SVG branding favicon
+│   └── index.html                 # Single-page web studio interface
+│
+├── app.py                         # FastAPI backend with multi-worker pool & async FIFO queue
+├── run_webapp.py                  # Web Studio launcher with host/port binding
+├── deploy.sh                      # Ubuntu / Debian automated deployment script
+├── perchance-studio.service       # Systemd unit file for 24/7 background operation
+├── nginx.conf                     # Reverse proxy configuration with WebSocket support
 ├── run_test.py                    # Root verification test script
 ├── setup.py                       # Setuptools packaging file
 ├── pyproject.toml                 # Packaging configuration
@@ -37,11 +45,8 @@ perchance_image_generator/
 
 ---
 
-## Technical Design
+## High-Concurrency Multi-Worker Architecture
 
-### `PerchanceGenerator` Client
-
-- Managed via `async with PerchanceGenerator() as generator:` context manager.
-- `generate()`: Generates a single image with customizable prompts, shape, art styles, guidance scale, and seeds.
-- `generate_batch()`: Loads the Perchance page once per session, handles iframe discovery, fills inputs, and generates multiple images without page reloads.
-- `PerchanceGeneratorPool`: Manages parallel generation across multiple asynchronous workers.
+- **`AsyncGeneratorPoolManager`:** Manages $N$ concurrent Chromium sessions (`MAX_WORKERS` env var, default: 3).
+- **Asynchronous FIFO Queue:** Queues incoming requests with real-time queue position and estimated wait time calculation.
+- **Session Auto-Recycling:** Automatically recycles browser contexts every 35 generations to ensure constant memory stability on VPS servers.

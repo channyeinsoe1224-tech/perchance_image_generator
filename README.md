@@ -1,14 +1,15 @@
-# Perchance Image Generator (Python Library v2.0)
+# Perchance Image Generator (Python Library v2.3)
 
-A modern Object-Oriented, asynchronous Python library for generating AI images using the [Perchance AI Text-to-Image Generator](https://perchance.org/ai-text-to-image-generator).
+A modern Object-Oriented, asynchronous Python library and high-concurrency Web Studio for generating AI images using the [Perchance AI Text-to-Image Generator](https://perchance.org/ai-text-to-image-generator).
 
 ---
 
 ## Features
 
 - 🎨 **Asynchronous & Object-Oriented:** Modern Python API using `async/await` and context managers (`async with PerchanceGenerator() as generator:`).
+- 👥 **High-Concurrency Multi-Worker Pool:** Built-in `AsyncGeneratorPoolManager` in the Web Studio with $N$ concurrent workers for simultaneous multi-user generations.
+- ⏳ **Smart Asynchronous FIFO Queue:** Real-time queue positioning and live wait countdowns over WebSockets when server capacity is full.
 - ⚡ **High Performance Session Reuse:** Single-session reuse to generate batches of images (`generate_batch`) without reloading the page.
-- 👥 **Multi-Worker Concurrency:** `PerchanceGeneratorPool` for generating multiple prompts in parallel across independent workers.
 - 📐 **Resolution & Shape Options:** Supports `square` (768x768), `landscape` (768x512), and `portrait` (512x768).
 - ⚙️ **Fine-Tuning Controls:** Negative prompts, guidance scale (1.0 - 30.0), seed control, and art styles.
 - 🌐 **Interactive AI Web Studio:** Built-in FastAPI web application with real-time WebSocket progress streaming and persistent local gallery.
@@ -80,33 +81,12 @@ if __name__ == "__main__":
 
 ---
 
-## Parallel Worker Pool
+## 🌐 Interactive Multi-User Web Studio
 
-```python
-import asyncio
-from perchance import PerchanceGeneratorPool
-
-async def main():
-    pool = PerchanceGeneratorPool(workers=2)
-    prompts = [
-        "a cybernetic wolf in a neon snowstorm, 8k",
-        "a cute baby dragon sleeping on gold coins, 8k"
-    ]
-    results = await pool.generate_parallel(prompts=prompts, shape="square")
-    for i, result in enumerate(results):
-        result.save(f"pool_output_{i}.jpeg")
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-
----
-
-## 🌐 Interactive Web Studio
-
-To launch the web interface locally or on a server:
+To launch the web interface locally or on a VPS:
 
 ```bash
+# Default: 3 concurrent workers (configurable via MAX_WORKERS)
 python run_webapp.py
 ```
 
@@ -119,7 +99,6 @@ Then open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** (or your VPS IP) in
 ### 1. Automated Setup Script
 
 ```bash
-# Make deploy script executable and run
 chmod +x deploy.sh
 ./deploy.sh
 ```
@@ -127,6 +106,8 @@ chmod +x deploy.sh
 ### 2. Launch Web Studio
 
 ```bash
+# Optional: Set MAX_WORKERS for higher capacity (e.g. 4-6 on 4GB+ VPS)
+export MAX_WORKERS=3
 source venv/bin/activate
 python run_webapp.py
 ```
