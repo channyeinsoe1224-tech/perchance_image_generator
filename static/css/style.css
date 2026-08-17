@@ -344,6 +344,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
 }
 
 .group-label {
@@ -355,16 +356,21 @@ a {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  flex-shrink: 1;
+  white-space: nowrap;
 }
 
 .label-icon {
   font-size: 0.9rem;
+  flex-shrink: 0;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
 }
 
 .btn-text {
@@ -374,8 +380,10 @@ a {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 6px;
+  padding: 3px 7px;
   border-radius: var(--radius-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .btn-text:hover, .btn-text:active {
@@ -982,6 +990,8 @@ a {
   padding: 2px 8px;
   border-radius: var(--radius-full);
   border: 1px solid rgba(59, 130, 246, 0.2);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .batch-selector {
@@ -1914,13 +1924,18 @@ a {
     border-right: none;
     border-bottom: 1px solid var(--border-subtle);
     height: auto;
-    overflow: visible;
+    overflow: hidden; /* Prevent content from bleeding past viewport */
+    min-width: 0;
+    width: 100%;
   }
 
   .panel-scroll-area {
-    overflow: visible;
+    overflow-y: visible;
+    overflow-x: hidden;
     padding: 12px;
     gap: 14px;
+    min-width: 0;
+    width: 100%;
   }
 
   .prompt-textarea {
@@ -1937,9 +1952,44 @@ a {
     display: none;
   }
 
+  /* Prevent group-header from overflowing viewport */
+  .control-group {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .group-header {
+    flex-wrap: nowrap;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .group-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  /* Prompt section header — keep buttons from getting cut off */
+  .prompt-group .group-header {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .header-actions {
+    gap: 4px;
+  }
+
+  .btn-text {
+    font-size: 0.7rem;
+    padding: 3px 6px;
+  }
+
   /* Compact Horizontal Scrolling Enhancers on Mobile */
   .enhancers-container {
     border-radius: var(--radius-sm);
+    min-width: 0;
+    width: 100%;
   }
 
   .enhancers-header {
