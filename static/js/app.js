@@ -206,7 +206,8 @@ document.addEventListener('DOMContentLoaded', () => {
       state.presets = await res.json();
       renderCustomStyleDropdown(state.presets.styles || []);
       renderEnhancers(state.presets.enhancers || {});
-      renderSamplePrompts(state.presets.prompts || []);
+      const sampleList = state.presets.sample_prompts || state.presets.prompts || [];
+      renderSamplePrompts(sampleList);
     } catch (err) {
       console.error('Error fetching presets:', err);
       showToast('Could not load style presets', 'error');
@@ -454,6 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderEnhancers(enhancers) {
+    if (!enhancersCategories) return;
     enhancersCategories.innerHTML = '';
     Object.entries(enhancers).forEach(([category, tags]) => {
       const catDiv = document.createElement('div');
@@ -461,20 +463,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const title = document.createElement('div');
       title.className = 'enhancers-category-title';
-      title.textContent = category;
+      title.textContent = category.charAt(0).toUpperCase() + category.slice(1);
       catDiv.appendChild(title);
 
       const tagsRow = document.createElement('div');
       tagsRow.className = 'enhancer-tags-row';
 
-      tags.forEach(tag => {
-        const tagBtn = document.createElement('button');
-        tagBtn.type = 'button';
-        tagBtn.className = 'enhancer-tag';
-        tagBtn.textContent = `+ ${tag}`;
-        tagBtn.addEventListener('click', () => appendToPrompt(tag));
-        tagsRow.appendChild(tagBtn);
-      });
+      if (Array.isArray(tags)) {
+        tags.forEach(item => {
+          const tagName = typeof item === 'object' && item.name ? item.name : item;
+          const tagValue = typeof item === 'object' && item.tag ? item.tag : (typeof item === 'object' && item.name ? item.name : item);
+
+          const tagBtn = document.createElement('button');
+          tagBtn.type = 'button';
+          tagBtn.className = 'enhancer-tag';
+          tagBtn.textContent = `+ ${tagName}`;
+          tagBtn.title = `Add "${tagValue}"`;
+          tagBtn.addEventListener('click', () => appendToPrompt(tagValue));
+          tagsRow.appendChild(tagBtn);
+        });
+      }
 
       catDiv.appendChild(tagsRow);
       enhancersCategories.appendChild(catDiv);
@@ -870,16 +878,23 @@ document.addEventListener('DOMContentLoaded', () => {
     tabStudioBtn.addEventListener('click', () => switchToTab('studio'));
     tabGalleryBtn.addEventListener('click', () => switchToTab('gallery'));
 
-    promptInput.addEventListener('input', updateCharCount);
-
     inspireBtn.addEventListener('click', () => {
-      const prompts = state.presets.prompts || [];
-      if (prompts.length > 0) {
-        const randomPrompt = prompts[Math.floor(Math.random() * prompts.length)];
+      const sampleList = (state.presets && (state.presets.sample_prompts || state.presets.prompts)) || [
+        "A majestic mechanical dragon with translucent crystal wings soaring over neon-lit futuristic Tokyo at midnight",
+        "Cozy hidden library inside a giant ancient hollow redwood tree with warm fireflies and floating lanterns",
+        "Serene Japanese garden in autumn with vibrant red maple leaves floating on a crystal koi pond, 8k",
+        "A cute astronaut red panda discovering glowing alien flora on an unexplored purple moon",
+        "Cyberpunk street noodle vendor in rainy Neo-Seoul with neon reflections on wet cobblestones",
+        "An intricate steampunk mechanical pocket watch revealing a tiny floating miniature universe inside",
+        "Ethereal ice palace on top of aurora borealis mountains under a starry cosmic sky, cinematic still",
+        "A magical apothecary shop filled with glowing potions, herb bundles, and sleeping feline familiars",
+      ];
+      if (sampleList.length > 0) {
+        const randomPrompt = sampleList[Math.floor(Math.random() * sampleList.length)];
         promptInput.value = randomPrompt;
         updateCharCount();
         promptInput.focus();
-        showToast('Generated surprise prompt!', 'info');
+        showToast('Generated inspiring prompt! ✨', 'info');
       }
     });
 
