@@ -1554,20 +1554,14 @@ a {
 
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
-  align-items: start; /* Prevent stretch — each card is its natural height */
+  align-items: start; /* Each card is its own natural height */
 }
 
-/* Landscape cards span full width so 16:9 is readable */
+/* On desktop: landscape spans 2 columns for a wide-but-balanced card */
 .gallery-grid .artwork-card.landscape {
-  grid-column: 1 / -1;
-}
-
-/* Portrait cards stay single column — 9:16 is tall, so in a 2-col grid
-   they look fine as individual cells */
-.gallery-grid .artwork-card.portrait {
-  grid-column: span 1;
+  grid-column: span 2;
 }
 
 .gallery-empty-state {
