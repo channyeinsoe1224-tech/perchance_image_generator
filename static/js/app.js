@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const emptyCanvas = document.getElementById('emptyCanvas');
   const resultsHeader = document.getElementById('resultsHeader');
   const resultsMeta = document.getElementById('resultsMeta');
+  const saveAllBtn = document.getElementById('saveAllBtn');
   const samplePromptChips = document.getElementById('samplePromptChips');
 
   const gallerySearchInput = document.getElementById('gallerySearchInput');
@@ -700,6 +701,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderCurrentResults(results) {
+    state.currentResults = results || [];
     if (emptyCanvas) emptyCanvas.style.display = 'none';
     resultsHeader.style.display = 'flex';
     resultsMeta.textContent = `Generated ${results.length} image(s)`;
@@ -709,6 +711,30 @@ document.addEventListener('DOMContentLoaded', () => {
       const card = createArtworkCard(item);
       currentImagesGrid.appendChild(card);
     });
+  }
+
+  function downloadAllCurrentResults() {
+    const list = (state.currentResults && state.currentResults.length > 0) 
+      ? state.currentResults 
+      : (wsAccumulatedResults && wsAccumulatedResults.length > 0 ? wsAccumulatedResults : []);
+
+    if (!list || list.length === 0) {
+      showToast('No images in current generation to download', 'info');
+      return;
+    }
+
+    list.forEach((item, index) => {
+      setTimeout(() => {
+        const link = document.createElement('a');
+        link.href = item.download_link || `/api/download/${item.id}`;
+        link.download = `perchance_${item.id}.jpeg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }, index * 250);
+    });
+
+    showToast(`Downloading ${list.length} image(s)...`, 'success');
   }
 
   function startProgressTimer() {
@@ -932,14 +958,23 @@ document.addEventListener('DOMContentLoaded', () => {
       seedInput.addEventListener('input', updateAdvancedSummary);
     }
 
+    const batchCountBadge = document.getElementById('batchCountBadge');
     batchButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         batchButtons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         state.batchCount = parseInt(btn.dataset.count, 10);
+        if (batchCountBadge) {
+          batchCountBadge.textContent = `${state.batchCount} Image${state.batchCount > 1 ? 's' : ''}`;
+        }
         updateAdvancedSummary();
+        showToast(`Batch set to ${state.batchCount} image${state.batchCount > 1 ? 's' : ''}`, 'info');
       });
     });
+
+    if (saveAllBtn) {
+      saveAllBtn.addEventListener('click', downloadAllCurrentResults);
+    }
 
     generateBtn.addEventListener('click', triggerGeneration);
 

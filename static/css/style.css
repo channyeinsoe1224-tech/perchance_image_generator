@@ -974,31 +974,49 @@ a {
 }
 
 /* Batch Selector */
+.batch-hint-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.1);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
 .batch-selector {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  gap: 8px;
 }
 
 .batch-btn {
-  padding: 7px;
+  padding: 9px 8px;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  font-size: 0.8rem;
-  font-weight: 600;
+  border-radius: var(--radius-md);
+  font-size: 0.86rem;
+  font-weight: 700;
   color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .batch-btn:hover {
   background: var(--bg-surface-hover);
   color: var(--text-primary);
+  border-color: var(--border-medium);
+  transform: translateY(-1px);
 }
 
 .batch-btn.active {
-  background: var(--accent-primary);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: #fff;
-  border-color: var(--accent-primary);
+  border-color: #3b82f6;
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.35);
 }
 
 /* Generate Button Container */

@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/style.css?v=2.5.0">
+  <link rel="stylesheet" href="/static/css/style.css?v=2.6.0">
 </head>
 <body>
   <div class="app-container">
@@ -190,6 +190,22 @@
                       <span class="check-icon">✓</span>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <!-- Batch Count Selector Group -->
+              <div class="control-group">
+                <div class="group-header">
+                  <label class="group-label">
+                    <span class="label-icon">🔢</span> Image Count (Batch)
+                  </label>
+                  <span class="batch-hint-badge" id="batchCountBadge">1 Image</span>
+                </div>
+                <div class="batch-selector" id="batchSelector">
+                  <button type="button" class="batch-btn active" data-count="1">1</button>
+                  <button type="button" class="batch-btn" data-count="2">2</button>
+                  <button type="button" class="batch-btn" data-count="3">3</button>
+                  <button type="button" class="batch-btn" data-count="4">4</button>
                 </div>
               </div>
 
@@ -450,6 +466,6 @@
     <div class="toast-container" id="toastContainer"></div>
   </div>
 
-  <script src="/static/js/app.js?v=2.5.0"></script>
+  <script src="/static/js/app.js?v=2.6.0"></script>
 </body>
 </html>
