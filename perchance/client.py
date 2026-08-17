@@ -57,7 +57,12 @@ class PerchanceGenerator:
         """
         self.generator_url = generator_url
         if headless is None:
-            self.headless = os.environ.get("HEADLESS", "false").lower() == "true"
+            if os.environ.get("HEADLESS") is not None:
+                self.headless = os.environ.get("HEADLESS", "false").lower() == "true"
+            elif platform.system() == "Linux" and not os.environ.get("DISPLAY"):
+                self.headless = True
+            else:
+                self.headless = False
         else:
             self.headless = headless
 
@@ -100,26 +105,40 @@ class PerchanceGenerator:
 
         self._pw = await async_playwright().start()
 
+        launch_args = [
+            "--disable-blink-features=AutomationControlled",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--no-first-run",
+        ]
+
         if self.user_data_dir:
             os.makedirs(self.user_data_dir, exist_ok=True)
-            self._context = await self._pw.chromium.launch_persistent_context(
-                user_data_dir=self.user_data_dir,
-                headless=self.headless,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--no-sandbox",
-                ],
-                viewport={"width": 1280, "height": 800},
-                user_agent=self.user_agent or self._generate_user_agent("148.0.0.0")
-            )
-            self._browser = None
+            try:
+                self._context = await self._pw.chromium.launch_persistent_context(
+                    user_data_dir=self.user_data_dir,
+                    headless=self.headless,
+                    args=launch_args,
+                    viewport={"width": 1280, "height": 800},
+                    user_agent=self.user_agent or self._generate_user_agent("148.0.0.0")
+                )
+                self._browser = None
+            except Exception as e:
+                # If profile directory is locked by another process, fallback to standard session
+                self._browser = await self._pw.chromium.launch(
+                    headless=self.headless,
+                    args=launch_args
+                )
+                context_kwargs = {"viewport": {"width": 1280, "height": 800}}
+                if self.headless or self.user_agent:
+                    context_kwargs["user_agent"] = self._generate_user_agent(self._browser.version)
+                self._context = await self._browser.new_context(**context_kwargs)
         else:
             self._browser = await self._pw.chromium.launch(
                 headless=self.headless,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--no-sandbox",
-                ]
+                args=launch_args
             )
 
             context_kwargs = {"viewport": {"width": 1280, "height": 800}}
@@ -358,12 +377,20 @@ class PerchanceGenerator:
                     )
 
                 if generation_result:
-                    dl_url = "https://image-generation.perchance.org" + generation_result["imageDownloadUrl"]
+                    raw_dl = generation_result.get("imageDownloadUrl", "")
+                    if raw_dl.startswith("http://") or raw_dl.startswith("https://"):
+                        dl_url = raw_dl
+                    elif raw_dl.startswith("data:image"):
+                        dl_url = raw_dl
+                    elif raw_dl:
+                        dl_url = "https://image-generation.perchance.org" + (raw_dl if raw_dl.startswith("/") else f"/{raw_dl}")
+                    else:
+                        dl_url = detected_img_url or ""
                     file_ext = generation_result.get("fileExtension", "jpeg")
                     actual_seed = generation_result.get("seed")
                     image_id = generation_result.get("imageId")
                 else:
-                    dl_url = detected_img_url
+                    dl_url = detected_img_url or ""
                     file_ext = "jpeg"
                     actual_seed = random.randint(1000000, 999999999)
                     image_id = None
@@ -374,20 +401,53 @@ class PerchanceGenerator:
                 else:
                     img_data = await generator_frame.evaluate("""
                         async (url) => {
-                            const r = await fetch(url);
-                            if (!r.ok) return { ok: false, status: r.status };
-                            const blob = await r.blob();
-                            const b64 = await new Promise(resolve => {
-                                const reader = new FileReader();
-                                reader.onloadend = () => resolve(reader.result.split(",")[1]);
-                                reader.readAsDataURL(blob);
-                            });
-                            return { ok: true, data: b64 };
+                            // 1. Try direct fetch of URL if valid
+                            if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+                                try {
+                                    const r = await fetch(url);
+                                    if (r.ok) {
+                                        const blob = await r.blob();
+                                        const b64 = await new Promise(resolve => {
+                                            const reader = new FileReader();
+                                            reader.onloadend = () => resolve(reader.result.split(",")[1]);
+                                            reader.readAsDataURL(blob);
+                                        });
+                                        return { ok: true, data: b64 };
+                                    }
+                                } catch (e) {
+                                    console.warn('Direct fetch failed, falling back to DOM extraction:', e);
+                                }
+                            }
+
+                            // 2. Fallback: extract directly from rendered <img> or <canvas> in DOM
+                            try {
+                                const imgs = Array.from(document.querySelectorAll('img'))
+                                    .filter(img => img.src && (img.src.startsWith('data:') || img.src.startsWith('blob:') || img.src.startsWith('http')));
+                                
+                                for (const img of imgs.reverse()) {
+                                    if (img.src.startsWith('data:image')) {
+                                        return { ok: true, data: img.src.split(',')[1] };
+                                    }
+                                    try {
+                                        const canvas = document.createElement('canvas');
+                                        canvas.width = img.naturalWidth || img.width || 768;
+                                        canvas.height = img.naturalHeight || img.height || 768;
+                                        const ctx = canvas.getContext('2d');
+                                        ctx.drawImage(img, 0, 0);
+                                        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+                                        if (dataUrl && dataUrl.includes(',')) {
+                                            return { ok: true, data: dataUrl.split(',')[1] };
+                                        }
+                                    } catch (err) {}
+                                }
+                            } catch (e) {}
+
+                            return { ok: false, status: 0, error: 'Extraction failed' };
                         }
                     """, dl_url)
 
                     if not img_data.get("ok"):
-                        raise DownloadError(f"Image download failed: HTTP {img_data.get('status')}")
+                        raise DownloadError(f"Image download failed: HTTP {img_data.get('status', 'ERR')} ({img_data.get('error', 'DNS/Network issue')})")
 
                     img_bytes = base64.b64decode(img_data["data"])
                 result_obj = ImageResult(

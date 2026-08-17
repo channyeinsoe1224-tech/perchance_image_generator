@@ -1,18 +1,18 @@
-# Perchance Image Generator (Python OOP Library v2.0)
+# Perchance Image Generator (Python Library v2.0)
 
-An Object-Oriented, asynchronous Python library for generating AI images using the [Perchance AI Text-to-Image Generator](https://perchance.org/ai-text-to-image-generator) supporting both **Version 2 Chromeless Direct API Mode** (`PerchanceHTTPGenerator`) and **Version 1 Playwright Chrome Mode** (`PerchanceGenerator`).
+A modern Object-Oriented, asynchronous Python library for generating AI images using the [Perchance AI Text-to-Image Generator](https://perchance.org/ai-text-to-image-generator).
 
 ---
 
-## Features & Version 2 Capabilities
+## Features
 
-- ⚡ **Version 2 Chromeless Direct API (`PerchanceHTTPGenerator`):** Executes in a lightweight, background process without launching desktop Chrome windows or GUI elements.
-- 📁 **Complete V1 Backup:** Full physical backup copy preserved in `v1_backup/` for safety.
-- 🎨 **Asynchronous & Object-Oriented Design:** Modern Python API using `async/await` and context managers (`async with PerchanceHTTPGenerator() as generator:`).
-- 🚀 **Session Reuse & Batch Generation:** Single-session reuse to generate multiple images (`generate_batch`) without page reloading.
+- 🎨 **Asynchronous & Object-Oriented:** Modern Python API using `async/await` and context managers (`async with PerchanceGenerator() as generator:`).
+- ⚡ **High Performance Session Reuse:** Single-session reuse to generate batches of images (`generate_batch`) without reloading the page.
+- 👥 **Multi-Worker Concurrency:** `PerchanceGeneratorPool` for generating multiple prompts in parallel across independent workers.
 - 📐 **Resolution & Shape Options:** Supports `square` (768x768), `landscape` (768x512), and `portrait` (512x768).
-- ⚙️ **Configurable Parameters:** Custom negative prompts, guidance scale (1.0 - 30.0), art styles, and seed control.
-
+- ⚙️ **Fine-Tuning Controls:** Negative prompts, guidance scale (1.0 - 30.0), seed control, and art styles.
+- 🌐 **Interactive AI Web Studio:** Built-in FastAPI web application with real-time WebSocket progress streaming and persistent local gallery.
+- 🚀 **VPS & Cloud Ready:** Native support for Ubuntu/Debian deployment, systemd background daemon, and Nginx reverse proxy.
 
 ---
 
@@ -20,12 +20,12 @@ An Object-Oriented, asynchronous Python library for generating AI images using t
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/perchance-image-generator.git
-cd perchance-image-generator
+git clone https://github.com/channyeinsoe1224-tech/perchance_image_generator.git
+cd perchance_image_generator
 
 # Install dependencies and Playwright Chromium
 pip install -r requirements.txt
-playwright install chromium
+playwright install --with-deps chromium
 
 # Install the library in editable mode
 pip install -e .
@@ -40,7 +40,6 @@ import asyncio
 from perchance import PerchanceGenerator
 
 async def main():
-    # Launch generator client using context manager
     async with PerchanceGenerator() as generator:
         image = await generator.generate(
             prompt="a futuristic cyberpunk cat, neon lights, 8k",
@@ -49,7 +48,7 @@ async def main():
         )
         
         print(f"Generated image seed: {image.seed}")
-        image.save("cyberpunk_cat.png")
+        image.save("cyberpunk_cat.jpeg")
 
 if __name__ == "__main__":
     asyncio.run(main())
@@ -72,7 +71,7 @@ async def main():
             shape="landscape"
         ):
             print(f"Image {idx} ready (Seed: {image.seed})")
-            image.save(f"garden_{idx}.jpg")
+            image.save(f"garden_{idx}.jpeg")
             idx += 1
 
 if __name__ == "__main__":
@@ -81,43 +80,70 @@ if __name__ == "__main__":
 
 ---
 
-## API Reference
-
-### `PerchanceGenerator`
+## Parallel Worker Pool
 
 ```python
-PerchanceGenerator(
-    headless: Optional[bool] = None,
-    timeout: float = 90.0,
-    user_agent: Optional[str] = None,
-    enable_network_logging: bool = False
-)
+import asyncio
+from perchance import PerchanceGeneratorPool
+
+async def main():
+    pool = PerchanceGeneratorPool(workers=2)
+    prompts = [
+        "a cybernetic wolf in a neon snowstorm, 8k",
+        "a cute baby dragon sleeping on gold coins, 8k"
+    ]
+    results = await pool.generate_parallel(prompts=prompts, shape="square")
+    for i, result in enumerate(results):
+        result.save(f"pool_output_{i}.jpeg")
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
-
-- `async generate(prompt, shape="square", negative_prompt="", guidance_scale=7.0, seed=-1) -> ImageResult`
-- `async generate_batch(prompt, count=1, shape="square", negative_prompt="", guidance_scale=7.0, first_seed=-1) -> AsyncGenerator[ImageResult, None]`
-- `async start()`: Explicitly start browser session.
-- `async close()`: Close browser context and release resources.
-
-### `ImageResult`
-
-- `image_bytes`: `bytes` object containing raw image binary data.
-- `seed`: `int` seed used for generation.
-- `file_extension`: `str` format (e.g. `'jpeg'`).
-- `save(path: str)`: Save binary image to disk.
-- `to_base64() -> str`: Base64 encoded string.
-- `to_data_uri() -> str`: HTML data URI string.
 
 ---
 
-## Running Examples & Tests
+## 🌐 Interactive Web Studio
+
+To launch the web interface locally or on a server:
 
 ```bash
-# Run root test
-python run_test.py
+python run_webapp.py
+```
 
-# Run examples
-python examples/quickstart.py
-python examples/batch_generation.py
-python examples/capture_network_log.py
+Then open **[http://127.0.0.1:8000](http://127.0.0.1:8000)** (or your VPS IP) in your browser.
+
+---
+
+## 🚀 VPS Server Deployment (Ubuntu / Debian)
+
+### 1. Automated Setup Script
+
+```bash
+# Make deploy script executable and run
+chmod +x deploy.sh
+./deploy.sh
+```
+
+### 2. Launch Web Studio
+
+```bash
+source venv/bin/activate
+python run_webapp.py
+```
+
+### 3. Run as 24/7 Background Systemd Service
+
+```bash
+sudo cp perchance-studio.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now perchance-studio
+sudo systemctl status perchance-studio
+```
+
+---
+
+## Running Tests
+
+```bash
+python run_test.py
 ```

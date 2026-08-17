@@ -1,0 +1,18 @@
+[Unit]
+Description=Perchance AI Studio Web Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/perchance_image_generator
+Environment="PATH=/opt/perchance_image_generator/venv/bin:/usr/local/bin:/usr/bin"
+Environment="HEADLESS=true"
+Environment="HOST=0.0.0.0"
+Environment="PORT=8000"
+ExecStart=/opt/perchance_image_generator/venv/bin/python run_webapp.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

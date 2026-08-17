@@ -4,7 +4,6 @@ A modern Object-Oriented Python library for generating AI images using Perchance
 """
 
 from .client import PerchanceGenerator, PerchanceGeneratorPool
-from .http_client import PerchanceHTTPGenerator
 from .models import ImageResult, GenerationOptions, Shape
 from .exceptions import (
     PerchanceError,
@@ -14,6 +13,9 @@ from .exceptions import (
     DownloadError
 )
 from .network import NetworkLogger
+
+# Version 2 aliases and exports
+PerchanceHTTPGenerator = PerchanceGenerator
 
 __version__ = "2.0.0"
 __all__ = [
@@ -30,4 +32,3 @@ __all__ = [
     "DownloadError",
     "NetworkLogger",
 ]
-

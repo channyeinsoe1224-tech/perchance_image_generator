@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#13171f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Perchance AI Studio — Autonomous Image Generation</title>
+  <meta name="description" content="State-of-the-art Web Studio for Perchance AI Text-to-Image Generation with style presets, aspect ratio controls, and persistent gallery.">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="alternate icon" href="/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1 class="brand-title">Perchance Studio</h1>
+          <span class="brand-subtitle">AI Neural Canvas v2.0</span>
+        </div>
+      </div>
+
+      <nav class="header-nav">
+        <button class="nav-tab active" id="tabStudioBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m9 9 6 6m0-6-6 6"/></svg>
+          Studio
+        </button>
+        <button class="nav-tab" id="tabGalleryBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>
+          Gallery <span class="badge-count" id="galleryCountBadge">0</span>
+        </button>
+      </nav>
+
+      <div class="header-status">
+        <div class="status-indicator online" id="statusIndicator">
+          <span class="pulse-dot"></span>
+          <span class="status-label" id="statusLabel">Engine Ready</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="app-main">
+      <!-- Studio View -->
+      <section class="view-panel studio-view active" id="studioView">
+        <div class="studio-layout">
+          
+          <!-- Controls Panel (Left) -->
+          <div class="controls-panel">
+            <div class="panel-scroll-area">
+              
+              <!-- Prompt Section -->
+              <div class="control-group prompt-group">
+                <div class="group-header">
+                  <label for="promptInput" class="group-label">
+                    <span class="label-icon">✨</span> Prompt
+                  </label>
+                  <div class="header-actions">
+                    <button type="button" class="btn-text" id="inspireBtn" title="Generate an inspiring prompt">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                      Surprise Me
+                    </button>
+                    <button type="button" class="btn-text btn-muted" id="clearPromptBtn" title="Clear prompt">Clear</button>
+                  </div>
+                </div>
+
+                <div class="textarea-wrapper">
+                  <textarea 
+                    id="promptInput" 
+                    class="prompt-textarea" 
+                    placeholder="Describe whatever you imagine... (e.g. A cybernetic owl perched on a neon skyscraper in rainy midnight)"
+                    rows="3"
+                  ></textarea>
+                  <div class="textarea-footer">
+                    <span class="char-count" id="charCount">0 / 2000</span>
+                    <span class="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd></span>
+                  </div>
+                </div>
+
+                <!-- Prompt Enhancers Accordion -->
+                <div class="enhancers-container">
+                  <div class="enhancers-header" id="toggleEnhancersBtn">
+                    <span class="enhancers-title">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                      Quick Prompt Modifiers
+                    </span>
+                    <span class="chevron-icon" id="enhancersChevron">▾</span>
+                  </div>
+                  <div class="enhancers-content" id="enhancersContent">
+                    <div id="enhancersCategories" class="enhancers-categories"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Custom Art Style Dropdown -->
+              <div class="control-group">
+                <label class="group-label">
+                  <span class="label-icon">🎨</span> Art Style
+                </label>
+                <div class="custom-dropdown" id="styleDropdown">
+                  <button type="button" class="dropdown-trigger" id="styleDropdownTrigger" aria-expanded="false" aria-haspopup="listbox">
+                    <div class="trigger-left">
+                      <span class="trigger-icon">🎨</span>
+                      <div class="trigger-text">
+                        <span class="trigger-title" id="selectedStyleTitle">Default / Raw</span>
+                        <span class="trigger-desc" id="selectedStyleDesc">Natural diffusion without constraint</span>
+                      </div>
+                    </div>
+                    <div class="trigger-right">
+                      <span class="dropdown-badge" id="selectedStyleBadge">Standard</span>
+                      <span class="dropdown-chevron">▾</span>
+                    </div>
+                  </button>
+                  <div class="dropdown-menu" id="styleDropdownMenu" role="listbox">
+                    <div class="dropdown-search-box">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                      <input type="text" id="styleSearchInput" placeholder="Filter styles..." autocomplete="off">
+                    </div>
+                    <div class="dropdown-items-scroll" id="styleDropdownItems">
+                      <!-- Rendered dynamically via JS -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Custom Aspect Ratio Dropdown -->
+              <div class="control-group">
+                <label class="group-label">
+                  <span class="label-icon">📐</span> Aspect Ratio & Resolution
+                </label>
+                <div class="custom-dropdown" id="shapeDropdown">
+                  <button type="button" class="dropdown-trigger" id="shapeDropdownTrigger" aria-expanded="false" aria-haspopup="listbox">
+                    <div class="trigger-left">
+                      <div class="aspect-preview-box square" id="shapePreviewBox"></div>
+                      <div class="trigger-text">
+                        <span class="trigger-title" id="selectedShapeTitle">Square (1:1)</span>
+                        <span class="trigger-desc" id="selectedShapeDesc">768 × 768 px</span>
+                      </div>
+                    </div>
+                    <div class="trigger-right">
+                      <span class="dropdown-badge" id="selectedShapeRes">768 × 768</span>
+                      <span class="dropdown-chevron">▾</span>
+                    </div>
+                  </button>
+                  <div class="dropdown-menu" id="shapeDropdownMenu" role="listbox">
+                    <div class="dropdown-item active" data-shape="square" data-title="Square (1:1)" data-res="768 × 768" data-desc="768 × 768 px">
+                      <div class="item-left">
+                        <div class="aspect-preview-box square"></div>
+                        <div class="item-info">
+                          <span class="item-title">Square (1:1)</span>
+                          <span class="item-desc">768 × 768 px — Standard square format</span>
+                        </div>
+                      </div>
+                      <span class="check-icon">✓</span>
+                    </div>
+                    <div class="dropdown-item" data-shape="landscape" data-title="Landscape (16:9)" data-res="768 × 512" data-desc="768 × 512 px">
+                      <div class="item-left">
+                        <div class="aspect-preview-box landscape"></div>
+                        <div class="item-info">
+                          <span class="item-title">Landscape (16:9)</span>
+                          <span class="item-desc">768 × 512 px — Cinematic widescreen</span>
+                        </div>
+                      </div>
+                      <span class="check-icon">✓</span>
+                    </div>
+                    <div class="dropdown-item" data-shape="portrait" data-title="Portrait (9:16)" data-res="512 × 768" data-desc="512 × 768 px">
+                      <div class="item-left">
+                        <div class="aspect-preview-box portrait"></div>
+                        <div class="item-info">
+                          <span class="item-title">Portrait (9:16)</span>
+                          <span class="item-desc">512 × 768 px — Vertical poster & phone view</span>
+                        </div>
+                      </div>
+                      <span class="check-icon">✓</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Custom Advanced Parameters Dropdown -->
+              <div class="control-group">
+                <label class="group-label">
+                  <span class="label-icon">⚙️</span> Advanced Parameters
+                </label>
+                <div class="custom-dropdown" id="advancedDropdown">
+                  <button type="button" class="dropdown-trigger" id="advancedDropdownTrigger" aria-expanded="false" aria-haspopup="true">
+                    <div class="trigger-left">
+                      <span class="trigger-icon">⚙️</span>
+                      <div class="trigger-text">
+                        <span class="trigger-title" id="selectedAdvancedTitle">Parameters & CFG</span>
+                        <span class="trigger-desc" id="selectedAdvancedDesc">CFG: 7.0 • Random Seed • Batch: 1</span>
+                      </div>
+                    </div>
+                    <div class="trigger-right">
+                      <span class="dropdown-badge" id="selectedAdvancedBadge">4 Settings</span>
+                      <span class="dropdown-chevron">▾</span>
+                    </div>
+                  </button>
+
+                  <div class="dropdown-menu dropdown-menu-wide" id="advancedDropdownMenu">
+                    <div class="advanced-dropdown-body">
+                      <!-- Negative Prompt -->
+                      <div class="field-item">
+                        <label for="negativePromptInput" class="field-label">Negative Prompt (What to avoid)</label>
+                        <input 
+                          type="text" 
+                          id="negativePromptInput" 
+                          class="text-input" 
+                          placeholder="blurry, distorted anatomy, extra limbs, bad quality, lowres"
+                        >
+                      </div>
+
+                      <!-- Guidance Scale -->
+                      <div class="field-item">
+                        <div class="field-header-row">
+                          <label for="guidanceScaleInput" class="field-label">Guidance Scale (CFG)</label>
+                          <span class="field-value" id="guidanceScaleVal">7.0</span>
+                        </div>
+                        <input 
+                          type="range" 
+                          id="guidanceScaleInput" 
+                          class="range-slider" 
+                          min="1.0" 
+                          max="20.0" 
+                          step="0.5" 
+                          value="7.0"
+                        >
+                        <div class="slider-marks">
+                          <span>1.0 (Loose)</span>
+                          <span>7.0 (Balanced)</span>
+                          <span>20.0 (Strict)</span>
+                        </div>
+                      </div>
+
+                      <!-- Seed Control -->
+                      <div class="field-item">
+                        <div class="field-header-row">
+                          <label class="field-label">Generation Seed</label>
+                          <label class="toggle-control">
+                            <input type="checkbox" id="randomSeedToggle" checked>
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-text">Random</span>
+                          </label>
+                        </div>
+                        <input 
+                          type="number" 
+                          id="seedInput" 
+                          class="text-input font-mono" 
+                          placeholder="Random (-1)" 
+                          disabled
+                        >
+                      </div>
+
+                      <!-- Batch Count -->
+                      <div class="field-item">
+                        <label class="field-label">Batch Size (Images per run)</label>
+                        <div class="batch-selector" id="batchSelector">
+                          <button type="button" class="batch-btn active" data-count="1">1</button>
+                          <button type="button" class="batch-btn" data-count="2">2</button>
+                          <button type="button" class="batch-btn" data-count="3">3</button>
+                          <button type="button" class="batch-btn" data-count="4">4</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Sticky Generate Button -->
+            <div class="generate-action-wrapper">
+              <button type="button" class="btn-generate" id="generateBtn">
+                <span class="btn-glow"></span>
+                <span class="btn-content">
+                  <svg class="generate-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                  </svg>
+                  <span class="btn-text-main">Generate Art</span>
+                </span>
+                <span class="btn-loader" style="display: none;">
+                  <span class="spinner"></span>
+                  <span class="loading-status-text">Synthesizing...</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Canvas / Showcase Panel (Right) -->
+          <div class="canvas-panel">
+            
+            <!-- Generation Progress State -->
+            <div class="canvas-state-card generating-state" id="generatingState" style="display: none;">
+              <div class="generation-card-inner">
+                <div class="neural-animation">
+                  <div class="core-orb"></div>
+                  <div class="orbit-ring ring-1"></div>
+                  <div class="orbit-ring ring-2"></div>
+                </div>
+                <h3 class="gen-stage-title" id="genStageTitle">Initializing Headless Engine...</h3>
+                <p class="gen-stage-desc" id="genStageDesc">Connecting to Perchance neural diffusion pipeline</p>
+                <div class="progress-bar-wrapper">
+                  <div class="progress-bar-fill" id="progressBarFill"></div>
+                </div>
+                <div class="gen-timer" id="genTimer">Elapsed: 00:00</div>
+              </div>
+            </div>
+
+            <!-- Current Results Display -->
+            <div class="canvas-results" id="canvasResults">
+              <div class="results-header" id="resultsHeader" style="display: none;">
+                <div class="results-title-info">
+                  <h2 class="results-title">Current Generation</h2>
+                  <span class="results-meta" id="resultsMeta">Generated 1 image</span>
+                </div>
+                <div class="results-actions">
+                  <button type="button" class="btn-secondary" id="saveAllBtn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    Download
+                  </button>
+                </div>
+              </div>
+
+              <!-- Image Display Grid -->
+              <div class="current-images-grid" id="currentImagesGrid">
+                <!-- Empty Placeholder State -->
+                <div class="empty-canvas" id="emptyCanvas">
+                  <div class="empty-art-icon">
+                    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+                      <rect x="3" y="3" width="18" height="18" rx="3"/>
+                      <circle cx="8.5" cy="8.5" r="1.5"/>
+                      <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                  </div>
+                  <h3 class="empty-title">Ready for Your Imagination</h3>
+                  <p class="empty-desc">Enter a prompt on the left or try one of these ideas to start generating immediately:</p>
+                  <div class="sample-prompt-chips" id="samplePromptChips">
+                    <!-- Sample prompt chips injected via JS -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Gallery View -->
+      <section class="view-panel gallery-view" id="galleryView" style="display: none;">
+        <div class="gallery-container">
+          <div class="gallery-toolbar">
+            <div class="search-input-wrapper">
+              <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="gallerySearchInput" class="search-input" placeholder="Search saved creations by prompt...">
+            </div>
+
+            <div class="gallery-filters" id="galleryStyleFilters">
+              <button class="filter-chip active" data-style="all">All Styles</button>
+            </div>
+          </div>
+
+          <!-- Gallery Grid -->
+          <div class="gallery-grid" id="galleryGrid">
+            <!-- Injected via JavaScript -->
+          </div>
+
+          <div class="gallery-empty-state" id="galleryEmptyState" style="display: none;">
+            <p>No creations found. Generate your first artwork in the Studio!</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Fullscreen Lightbox Modal -->
+    <div class="modal-overlay" id="lightboxModal" style="display: none;">
+      <div class="lightbox-content">
+        <button type="button" class="modal-close-btn" id="closeModalBtn" title="Close (Esc)">✕</button>
+        <div class="lightbox-layout">
+          <div class="lightbox-media">
+            <img id="modalImage" src="" alt="AI Generation Preview">
+          </div>
+          <div class="lightbox-sidebar">
+            <h3 class="sidebar-title">Artwork Details</h3>
+            
+            <div class="meta-section">
+              <label class="meta-label">Prompt</label>
+              <p class="meta-prompt" id="modalPromptText"></p>
+              <button type="button" class="btn-copy" id="modalCopyPromptBtn">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy Prompt
+              </button>
+            </div>
+
+            <div class="meta-grid">
+              <div class="meta-card">
+                <span class="card-label">Style</span>
+                <span class="card-val" id="modalStyleVal">-</span>
+              </div>
+              <div class="meta-card">
+                <span class="card-label">Resolution</span>
+                <span class="card-val" id="modalResolutionVal">-</span>
+              </div>
+              <div class="meta-card">
+                <span class="card-label">Seed</span>
+                <span class="card-val font-mono" id="modalSeedVal">-</span>
+              </div>
+              <div class="meta-card">
+                <span class="card-label">CFG Scale</span>
+                <span class="card-val" id="modalGuidanceVal">-</span>
+              </div>
+            </div>
+
+            <div class="lightbox-actions">
+              <button type="button" class="btn-primary-action" id="modalRemixBtn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                Remix in Studio
+              </button>
+              <a id="modalDownloadLink" class="btn-secondary-action" href="" download="">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                Download Image
+              </a>
+              <button type="button" class="btn-danger-action" id="modalDeleteBtn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Hub -->
+    <div class="toast-container" id="toastContainer"></div>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
