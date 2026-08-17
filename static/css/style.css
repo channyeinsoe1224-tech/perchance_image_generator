@@ -1348,28 +1348,29 @@ a {
 .artwork-thumb-wrapper {
   position: relative;
   width: 100%;
-  padding-bottom: 100%;
+  /* Default: square 1:1 */
+  aspect-ratio: 1 / 1;
   overflow: hidden;
-  background: #000;
+  background: #0c0e12;
   cursor: pointer;
 }
 
 .artwork-card.landscape .artwork-thumb-wrapper {
-  padding-bottom: 66.66%;
+  /* 16:9 landscape */
+  aspect-ratio: 16 / 9;
 }
 
 .artwork-card.portrait .artwork-thumb-wrapper {
-  padding-bottom: 133.33%;
+  /* 9:16 portrait */
+  aspect-ratio: 9 / 16;
 }
 
 .artwork-img {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   transition: transform var(--transition-normal);
+  display: block;
 }
 
 .artwork-card:hover .artwork-img {
@@ -1553,8 +1554,20 @@ a {
 
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 16px;
+  align-items: start; /* Prevent stretch — each card is its natural height */
+}
+
+/* Landscape cards span full width so 16:9 is readable */
+.gallery-grid .artwork-card.landscape {
+  grid-column: 1 / -1;
+}
+
+/* Portrait cards stay single column — 9:16 is tall, so in a 2-col grid
+   they look fine as individual cells */
+.gallery-grid .artwork-card.portrait {
+  grid-column: span 1;
 }
 
 .gallery-empty-state {
@@ -2089,6 +2102,17 @@ a {
   .gallery-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
+    align-items: start;
+  }
+
+  /* On mobile, landscape still spans full width */
+  .gallery-grid .artwork-card.landscape {
+    grid-column: 1 / -1;
+  }
+
+  /* Portrait stays single column on mobile too */
+  .gallery-grid .artwork-card.portrait {
+    grid-column: span 1;
   }
 
   /* Mobile Lightbox Modal */
